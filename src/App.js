@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import classNames from 'classnames'
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa'
+import reactStringReplace from 'react-string-replace'
 
 function getDataFromAPI({updateBeers}){
   fetch('https://api.punkapi.com/v2/beers')
@@ -30,8 +31,31 @@ function getDataFromAPI({updateBeers}){
     })
 }
 
-const BeerRow = ({beer}) => {
+const HighlightText = ({content, searchQuery}) => {
+  if (searchQuery === null) {
+    return content
+  }
+  if (content.toLowerCase().includes(searchQuery.toLowerCase())){
+    const searchRegex = new RegExp(`(${searchQuery})`,"gi");
+    return reactStringReplace(content, searchRegex, (match, i) => (
+      <span key={i} className="font-bold bg-white bg-opacity-75">{match}</span>
+    ))
+  } else {
+    return content
+  }
+}
+
+const BeerRow = ({beer, searchQuery = null}) => {
   const [rowOpenState, updateRowOpenState] = useState(false)
+  useEffect(() => {
+    if (searchQuery !== null && beer.description.toLowerCase().includes(searchQuery.toLowerCase()) && searchQuery.length > 2){
+      updateRowOpenState(true)
+    } else {
+      updateRowOpenState(false)
+    }
+  }, [searchQuery, beer.description])
+
+  const descriptionSearchQuery = searchQuery !== null ? searchQuery.length > 2 ? searchQuery : null : null
   return (
     <li
       className="mb-2"
@@ -48,7 +72,8 @@ const BeerRow = ({beer}) => {
           "rounded-t-sm": rowOpenState
         })}
       >
-        <p>{beer.name}: {beer.tagline} ({beer.abv}%)</p>
+        <p>
+          <HighlightText content={beer.name + ': ' + beer.tagline} searchQuery={searchQuery} /> ({beer.abv}%)</p>
         {rowOpenState ? <FaChevronUp /> : <FaChevronDown />}
       </div>
       <div
@@ -62,11 +87,12 @@ const BeerRow = ({beer}) => {
         })}
       >
         <img
+          alt={`${beer.name}`}
           src={beer.image_url}
           style={{maxHeight: "20rem", maxWidth: "20rem"}}
           className="m-2"
         />
-        <p>{beer.description}</p>
+        <p><HighlightText content={beer.description} searchQuery={descriptionSearchQuery} /></p>
       </div>
     </li>
   )
@@ -94,7 +120,7 @@ function App() {
       })
       updateSearchResults(beerSearchResults)
     }
-  }, [searchQuery])
+  }, [searchQuery, beers])
 
   return (
     <main className="p-4 flex justify-center" >
@@ -115,10 +141,10 @@ function App() {
         }
         {beers && searchQuery !== '' &&
           <>
-            <h2>Search Results</h2>
+            <h2 className="text-lg mb-2">Search Results</h2>
             <ul>
               {searchResults.length > 0 && searchResults.map(b => (
-                <BeerRow beer={b} key={b.id} />
+                <BeerRow beer={b} key={b.id} searchQuery={searchQuery} />
               ))}
             </ul>
             {searchResults.length === 0 && <p>No results found</p>}
